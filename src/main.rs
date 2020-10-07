@@ -284,6 +284,8 @@ pub fn main() {
                 for col in 0..universe.width {
                     let cell_state = universe.get_cell_state(row, col);
                     if cell_state == Cell::Alive {
+                        // The top left of the screen is -1.0, 1.0 and the bottom right is 1.0, -1.0
+                        // So I add -1.0 to the row or col * size of the square to get the x or y coordinate
                         squares.push(Square::new((-1.0 + (col as f32) * SQUARE_SIZE,-1.0 + (row as f32) * SQUARE_SIZE), SQUARE_SIZE, RED3));
                     } else {
                     }
