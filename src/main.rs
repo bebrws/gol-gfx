@@ -268,8 +268,6 @@ pub fn main() {
             _ => (),
         }
 
-        let mut squares: Vec<Square> = Vec::new();  
-
         let time_diff = (Instant::now() - last_time).as_secs_f32();
         if time_diff > 0.1 {
             // println!("Tick {:?}\n", (Instant::now() - last_time));
@@ -280,6 +278,8 @@ pub fn main() {
         }
 
         if needs_update {
+            let mut squares: Vec<Square> = Vec::new();  
+            
             for row in 0..universe.height {
                 for col in 0..universe.width {
                     let cell_state = universe.get_cell_state(row, col);
