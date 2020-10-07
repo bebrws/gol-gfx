@@ -143,6 +143,13 @@ impl Square {
             color
         }
     }
+
+    pub fn extend_indices_vector(&self, is: &mut Vec<u32>, i: u32) {
+        is.extend(&[
+            4*i, 4*i + 1, 4*i + 2, 4*i + 2, 4*i + 3, 4*i
+        ]);
+    }
+
     pub fn extend_vertices_vector(&self, vs: &mut Vec<Vertex>, aspect_ratio: f32) {
         let (hx, hy);
         if aspect_ratio > 1.0 {
@@ -288,9 +295,7 @@ pub fn main() {
             for (index, square) in squares.iter().enumerate() {
                 let i = index as u32;
                 square.extend_vertices_vector(&mut vs, aspect_ratio);
-                is.extend(&[
-                    4*i, 4*i + 1, 4*i + 2, 4*i + 2, 4*i + 3, 4*i
-                ]);
+                square.extend_indices_vector(&mut is, i);
             }
             let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &*is);
 
