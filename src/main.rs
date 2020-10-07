@@ -293,9 +293,8 @@ pub fn main() {
             let mut vs: Vec<Vertex> = Vec::new();
             let mut is: Vec<u32> = Vec::new();
             for (index, square) in squares.iter().enumerate() {
-                let i = index as u32;
                 square.extend_vertices_vector(&mut vs, aspect_ratio);
-                square.extend_indices_vector(&mut is, i);
+                square.extend_indices_vector(&mut is, index as u32);
             }
             let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &*is);
 
