@@ -49,7 +49,7 @@ impl Universe {
             cells: (0..(width*height)).map(|i| {
                 // if i % 2 == 0 || i % 7 == 0 {
                 if rand::random::<u8>()%2 == 1 {
-                    Cell::Dead
+                    Cell::Alive
                 } else {
                     Cell::Dead
                 }
@@ -136,15 +136,17 @@ impl Universe {
 #[derive(Debug, Clone, Copy)]
 struct Square {
     pub pos: (f32, f32),
-    pub size: f32,
+    pub size_x: f32,
+    pub size_y: f32,
     pub color: [f32; 3]
 }
 
 impl Square {
-    pub fn new(pos: (f32, f32), size: f32, color: [f32; 3]) -> Square {
+    pub fn new(pos: (f32, f32), size_x: f32, size_y: f32, color: [f32; 3]) -> Square {
         Self {
             pos,
-            size,
+            size_x,
+            size_y,
             color
         }
     }
@@ -156,21 +158,11 @@ impl Square {
     }
 
     pub fn extend_vertices_vector(&self, vs: &mut Vec<Vertex>, aspect_ratio: f32) {
-        let (hx, hy);
-        if aspect_ratio > 1.0 {
-            hx = self.size / aspect_ratio;
-            hy = self.size;
-        }
-        else {
-            hx = self.size;
-            hy = self.size * aspect_ratio;
-        }
-
         vs.extend(&[
             Vertex { pos: [self.pos.0, self.pos.1], color: self.color },
-            Vertex { pos: [self.pos.0 + hx, self.pos.1], color: self.color },
-            Vertex { pos: [self.pos.0 + hx, self.pos.1 - hy], color: self.color },
-            Vertex { pos: [self.pos.0, self.pos.1 - hy], color: self.color },
+            Vertex { pos: [self.pos.0 + self.size_x, self.pos.1], color: self.color },
+            Vertex { pos: [self.pos.0 + self.size_x, self.pos.1 - self.size_y], color: self.color },
+            Vertex { pos: [self.pos.0, self.pos.1 - self.size_y], color: self.color },
         ]);
     }    
 }
@@ -234,8 +226,10 @@ pub fn main() {
     
     let mut aspect_ratio = 0.0;
     let mut needs_update = false;
+    let mut hx: f32 = SQUARE_SIZE;
+    let mut hy: f32 = SQUARE_SIZE;
 
-    let mut universe: Universe = Universe::new((2.0/SQUARE_SIZE) as u32, (2.0/SQUARE_SIZE) as u32);
+    let mut universe: Universe = Universe::new((2.0/hx) as u32, (2.0/hy) as u32);
     
     // let mut normal_text = gfx_text::new(factory.clone()).unwrap();
     let mut normal_text = gfx_text::RendererBuilder::new(factory.clone())
@@ -253,8 +247,8 @@ pub fn main() {
                     last_mouse_y -= delta.1 / (window_height / 2.0);
 
                     if mouse_is_down {
-                        let col = ((1.0 + last_mouse_x) / SQUARE_SIZE as f64) as u32;
-                        let row = ((1.0 + last_mouse_y) / SQUARE_SIZE as f64) as u32;
+                        let col = ((1.0 + last_mouse_x) / hx as f64) as u32;
+                        let row = ((1.0 + last_mouse_y) / hy as f64) as u32;
                         if universe.get_cell_state(row, col) == Cell::Dead {
                             tick_size += 0.03;
                         }
@@ -292,10 +286,10 @@ pub fn main() {
                         } else {
                             window.window().set_fullscreen(None);
                         }
-                        universe = Universe::new((2.0/SQUARE_SIZE) as u32, (2.0/SQUARE_SIZE) as u32);
+                        universe = Universe::new((2.0/hx) as u32, (2.0/hy) as u32);
                     }
                     (glutin::event::VirtualKeyCode::R, glutin::event::ElementState::Pressed) => {
-                        universe = Universe::new((2.0/SQUARE_SIZE) as u32, (2.0/SQUARE_SIZE) as u32);
+                        universe = Universe::new((2.0/hx) as u32, (2.0/hy) as u32);
                     },
                     (glutin::event::VirtualKeyCode::P, glutin::event::ElementState::Pressed) => {
                         if paused == true {
@@ -309,6 +303,15 @@ pub fn main() {
                 glutin::event::WindowEvent::Resized(physical_size) => {
                     gfx_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     aspect_ratio = physical_size.width as f32 / physical_size.height as f32;
+                    if aspect_ratio > 1.0 {
+                        hx = SQUARE_SIZE / aspect_ratio;
+                        hy = SQUARE_SIZE;
+                    }
+                    else {
+                        hx = SQUARE_SIZE;
+                        hy = SQUARE_SIZE * aspect_ratio;
+                    }
+                    universe = Universe::new((2.0/hx) as u32, (2.0/hy) as u32);
                     needs_update = true;
                     window_width = physical_size.width as f64;
                     window_height = physical_size.height as f64;
@@ -339,13 +342,13 @@ pub fn main() {
                     if cell_state == Cell::Alive {
                         // The top left of the screen is -1.0, 1.0 and the bottom right is 1.0, -1.0
                         // So I add -1.0 to the row or col * size of the square to get the x or y coordinate
-                        squares.push(Square::new((-1.0 + (col as f32) * SQUARE_SIZE,-1.0 + (row as f32) * SQUARE_SIZE), SQUARE_SIZE, RED3));
+                        squares.push(Square::new((-1.0 + (col as f32) * hx,-1.0 + (row as f32) * hy), hx, hy, RED3));
                     } else {
                     }
                 }
             }
 
-            squares.push(Square::new((last_mouse_x as f32,last_mouse_y as f32), SQUARE_SIZE, GREEN3));
+            squares.push(Square::new((last_mouse_x as f32,last_mouse_y as f32), hx, hy, GREEN3));
 
             let mut vs: Vec<Vertex> = Vec::new();
             let mut is: Vec<u32> = Vec::new();
