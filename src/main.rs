@@ -49,7 +49,7 @@ impl Universe {
             cells: (0..(width*height)).map(|i| {
                 // if i % 2 == 0 || i % 7 == 0 {
                 if rand::random::<u8>()%2 == 1 {
-                    Cell::Alive
+                    Cell::Dead
                 } else {
                     Cell::Dead
                 }
@@ -62,6 +62,11 @@ impl Universe {
         let idx = self.get_index(row, column);
         return self.cells[idx];
     }
+
+    fn set_cell_state(&mut self, row: u32, column: u32, state: Cell) {
+        let idx = self.get_index(row, column);
+        self.cells[idx] = state;
+    }    
 
     fn live_neighbors(&self, row: u32, column: u32) -> u8 {
         let mut count = 0;
@@ -177,6 +182,7 @@ const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
 
 
 const RED3: [f32; 3] = [1.0, 0.0, 0.0];
+const GREEN3: [f32; 3] = [0.0, 1.0, 0.0];
 const WHITE3: [f32; 3] = [1.0, 1.0, 1.0];
 
 const SQUARE_SIZE: f32 = 0.01;
@@ -196,6 +202,8 @@ pub fn main() {
     let (window, mut device, mut factory, mut main_color, mut main_depth) = gfx_glutin::init::<gfx::format::Srgba8, gfx::format::DepthStencil, ()>(builder, context, &event_loop).unwrap();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
+    window.window().set_cursor_visible(false);
+
     let pso = factory.create_pipeline_simple(
         include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/rect_150.glslv")),
         include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/rect_150.glslf")),
@@ -211,7 +219,15 @@ pub fn main() {
         out: main_color.clone()
     };
 
+    let mut paused = false;
 
+    let mut tick_size = 0.1;
+    let mut window_width:f64 = 0.0;
+    let mut window_height:f64 = 0.0;
+
+    let mut mouse_is_down = false;
+    let mut last_mouse_x:f64 = 0.0;
+    let mut last_mouse_y:f64 = 0.0;
     let mut total_frames = 0;
     let start_time = Instant::now();
     let mut last_time = Instant::now();
@@ -227,13 +243,38 @@ pub fn main() {
         .with_font("fonts/Roboto-Bold.ttf")
         .build()
         .unwrap();
- 
-    
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = glutin::event_loop::ControlFlow::Poll;
         match event {
+            glutin::event::Event::DeviceEvent { event, .. } => match event {
+                glutin::event::DeviceEvent::MouseMotion { delta } => { 
+                    last_mouse_x += delta.0 / (window_width / 2.0);
+                    last_mouse_y -= delta.1 / (window_height / 2.0);
+
+                    if mouse_is_down {
+                        let col = ((1.0 + last_mouse_x) / SQUARE_SIZE as f64) as u32;
+                        let row = ((1.0 + last_mouse_y) / SQUARE_SIZE as f64) as u32;
+                        if universe.get_cell_state(row, col) == Cell::Dead {
+                            tick_size += 0.03;
+                        }
+                        universe.set_cell_state(row, col, Cell::Alive);
+                    }
+                    needs_update = true;
+
+                }
+                glutin::event::DeviceEvent::Button { button, state } => match state {
+                    glutin::event::ElementState::Pressed => {
+                        mouse_is_down = true;
+                    },
+                    glutin::event::ElementState::Released => {
+                        mouse_is_down = false;
+                    },
+                },
+                _ => (),
+            },            
             glutin::event::Event::WindowEvent { event, .. } => match event {
+                // glutin::event::MouseButton
                 glutin::event::WindowEvent::CloseRequested =>  *control_flow = glutin::event_loop::ControlFlow::Exit,
                 glutin::event::WindowEvent::KeyboardInput {
                     input:
@@ -255,6 +296,13 @@ pub fn main() {
                     }
                     (glutin::event::VirtualKeyCode::R, glutin::event::ElementState::Pressed) => {
                         universe = Universe::new((2.0/SQUARE_SIZE) as u32, (2.0/SQUARE_SIZE) as u32);
+                    },
+                    (glutin::event::VirtualKeyCode::P, glutin::event::ElementState::Pressed) => {
+                        if paused == true {
+                            paused = false;
+                        } else {
+                            paused = true;
+                        }
                     }
                     _ => (),
                 },
@@ -262,6 +310,8 @@ pub fn main() {
                     gfx_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     aspect_ratio = physical_size.width as f32 / physical_size.height as f32;
                     needs_update = true;
+                    window_width = physical_size.width as f64;
+                    window_height = physical_size.height as f64;
                 },
                 _ => (),
             },
@@ -269,17 +319,20 @@ pub fn main() {
         }
 
         let time_diff = (Instant::now() - last_time).as_secs_f32();
-        if time_diff > 0.1 {
+        if time_diff > tick_size {
+            tick_size = 0.1;
             // println!("Tick {:?}\n", (Instant::now() - last_time));
             last_time = Instant::now();
-            universe.tick();
+            if !paused {
+                universe.tick();
+            }
             needs_update = true;
             // universe.debug_print();
         }
 
         if needs_update {
             let mut squares: Vec<Square> = Vec::new();  
-            
+
             for row in 0..universe.height {
                 for col in 0..universe.width {
                     let cell_state = universe.get_cell_state(row, col);
@@ -291,6 +344,8 @@ pub fn main() {
                     }
                 }
             }
+
+            squares.push(Square::new((last_mouse_x as f32,last_mouse_y as f32), SQUARE_SIZE, GREEN3));
 
             let mut vs: Vec<Vertex> = Vec::new();
             let mut is: Vec<u32> = Vec::new();
