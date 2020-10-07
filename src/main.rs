@@ -8,6 +8,7 @@ use gfx::traits::FactoryExt;
 use gfx::Device;
 use gfx_window_glutin as gfx_glutin;
 
+
 pub type ColorFormat = gfx::format::Srgba8;
 pub type DepthFormat = gfx::format::DepthStencil;
 
@@ -91,32 +92,47 @@ impl Universe {
     }
         
 
+    fn set_next(&mut self, row: u32, col:u32, next:&mut Vec<Cell>) {
+        let idx = self.get_index(row, col);            
+        let cell = self.cells[idx];
+        let live_neighbors = self.live_neighbors(row, col);
+
+        let next_cell_state = match (cell, live_neighbors) {
+            (Cell::Alive, x) if x < 2 => Cell::Dead,
+            (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
+            (Cell::Alive, x) if x > 3 => Cell::Dead,
+            (Cell::Dead, 3) => Cell::Alive,
+            (otherwise_set_same_state, _) => otherwise_set_same_state,
+        };
+
+        // if next[idx] != next_cell_state {
+        //     self.dirty = true;
+        // }
+        
+        next[idx] = next_cell_state;
+    }
+
+
     fn tick(&mut self) {
         self.dirty = false;
-        let mut next = self.cells.clone();
+        // let mut next = self.cells.clone();
+        let mut next:Vec<Cell> = vec!(Cell::Dead; (self.width * self.height) as usize); 
 
+
+
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build().unwrap();
         for row in 0..self.height {
             for col in 0..self.width {
-                let idx = self.get_index(row, col);            
-                let cell = self.cells[idx];
-                let live_neighbors = self.live_neighbors(row, col);
-
-                let next_cell_state = match (cell, live_neighbors) {
-                    (Cell::Alive, x) if x < 2 => Cell::Dead,
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => Cell::Alive,
-                    (Cell::Alive, x) if x > 3 => Cell::Dead,
-                    (Cell::Dead, 3) => Cell::Alive,
-                    (otherwise_set_same_state, _) => otherwise_set_same_state,
-                };
-
-                if next[idx] != next_cell_state {
-                    self.dirty = true;
-                }
-                next[idx] = next_cell_state;
+                
+                let n = pool.install(|| self.set_next(row, col, &mut next));
             }
         }
 
+        rayon::join(|| (), || ());
+
         self.cells = next;
+        
+        self.dirty = true;
     }
 
     fn debug_print(&self) {
