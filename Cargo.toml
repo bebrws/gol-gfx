@@ -1,0 +1,15 @@
+[package]
+name = "gol-gfx"
+version = "0.1.0"
+authors = ["Brad Barrows <bebrws@gmail.com>"]
+
+[dependencies]
+image = "*"
+rand = "*"
+gfx_window_glutin = { git = "https://github.com/bebrws/gfx_window_glutin", rev = "8071c4e" }
+glutin = "0.25.0"
+gfx = "0.18.2"
+gfx_text = "0.27.0"
+
+[profile.release]
+lto = true
